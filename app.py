@@ -19,23 +19,45 @@ auth(app)
 server = app.server  # Expose the server variable for deployments
 
 # Standard Dash app code below
-app.layout = html.Div(className='container', children=[
+app.config['suppress_callback_exceptions'] = True
 
-    Header('Sample App'),
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='content')
+])
 
-    Row([
-        Column(width=4, children=[
-            dcc.Dropdown(
-                id='dropdown',
-                options=[{'label': i, 'value': i} for i in ['LA', 'NYC', 'MTL']],
-                value='LA'
-            )
-        ]),
-        Column(width=8, children=[
-            dcc.Graph(id='graph')
+
+@app.callback(Output('content', 'children'),
+              [Input('url', 'pathname')])
+def username_in_layout(id):
+    oauth_token = flask.request.cookies['plotly_oauth_token']
+    base_url = 'https://plotly.charleyferrari.com/v2'
+    endpoint = '/users/current'
+    headers = {
+        'plotly-client-platform': 'dash-auth',
+        'content-type': 'application/json',
+        'Authorization': 'Bearer {}'.format(oauth_token)
+    }
+    r = requests.get(url=base_url+endpoint, headers=headers, verify=False)
+    username = r.json()['username']
+    return html.Div(className='container', children=[
+
+        Header('Hello {}'.format(username)),
+
+        Row([
+            Column(width=4, children=[
+                dcc.Dropdown(
+                    id='dropdown',
+                    options=[{'label': i, 'value': i} for i in ['LA', 'NYC', 'MTL']],
+                    value='LA'
+                )
+            ]),
+            Column(width=8, children=[
+                dcc.Graph(id='graph')
+            ])
         ])
     ])
-])
+
 
 @app.callback(Output('graph', 'figure'),
               [Input('dropdown', 'value')])
@@ -55,6 +77,7 @@ def update_graph(value):
             }
         }
     }
+
 
 # Optionally include CSS
 app.css.append_css({
